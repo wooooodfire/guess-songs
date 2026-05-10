@@ -1,4 +1,5 @@
-/* ── Socket.io ────────────────────────────────────────── */
+/* Socket.io + Piano engine */
+
 var socket = io();
 
 // ── DOM refs ───────────────────────────────────────────
@@ -19,25 +20,6 @@ var main = document.getElementById('main');
 
 // ── State ──────────────────────────────────────────────
 var isHostUser = false;
-
-// ── Background particles ───────────────────────────────
-(function createParticles() {
-	var container = document.getElementById('particles');
-	if (!container) return;
-	var colors = ['#7f5af0', '#2cb67d', '#e53170', '#72757e'];
-	for (var i = 0; i < 30; i++) {
-		var p = document.createElement('div');
-		p.className = 'particle';
-		var size = Math.random() * 20 + 5;
-		p.style.width = size + 'px';
-		p.style.height = size + 'px';
-		p.style.left = Math.random() * 100 + '%';
-		p.style.background = colors[Math.floor(Math.random() * colors.length)];
-		p.style.animationDuration = (Math.random() * 15 + 10) + 's';
-		p.style.animationDelay = (Math.random() * 10) + 's';
-		container.appendChild(p);
-	}
-})();
 
 // ── Player login ────────────────────────────────────────
 roomform.addEventListener('submit', function (e) {
@@ -76,26 +58,20 @@ hostansform.addEventListener('submit', function (e) {
 	}
 });
 
-// Also attach to the button in case form submit doesn't fire
-document.getElementById('hostansbtn').addEventListener('click', function (e) {
-	e.preventDefault();
-	var hostansinput = document.getElementById('hostansinput');
-	if (hostansinput.value) {
-		socket.emit('host answer', hostansinput.value);
-		hostansinput.value = '';
-		hostansform.classList.remove('open');
-	}
-});
-
 // ── Socket events ───────────────────────────────────────
 socket.on('chat message', function (msg, name) {
 	var item = document.createElement('li');
 	item.textContent = name ? name + '：' + msg : msg;
 
-	// Detect special message types
 	if (msg && msg.indexOf('猜對了答案') === 0) {
 		item.className = 'correct';
-	} else if (msg && (msg.indexOf('已經加入房間') === 0 || msg.indexOf('Host已經加入房間') === 0 || msg.indexOf('Host出了題目') === 0 || msg.indexOf('已離開房間') === 0 || msg.indexOf('Host已離開房間') === 0)) {
+	} else if (msg && (
+		msg.indexOf('已經加入房間') === 0 ||
+		msg.indexOf('Host已經加入房間') === 0 ||
+		msg.indexOf('Host出了題目') === 0 ||
+		msg.indexOf('已離開房間') >= 0 ||
+		msg.indexOf('Host已離開房間') >= 0
+	)) {
 		item.className = 'system';
 	}
 
@@ -117,15 +93,14 @@ socket.on('connectionSuccess', function (msg) {
 	mainform.classList.add('collapsed');
 	main.classList.add('open');
 
-	// Player info
 	var selfNameItem = document.createElement('h2');
-	selfNameItem.setAttribute('id', 'selfName');
-	selfNameItem.textContent = '🎮 Player：' + msg.username;
+	selfNameItem.id = 'selfName';
+	selfNameItem.textContent = 'Player：' + msg.username;
 	showinfo.appendChild(selfNameItem);
 
 	var selfRoomItem = document.createElement('h3');
-	selfRoomItem.setAttribute('id', 'selfRoom');
-	selfRoomItem.textContent = '🏠 Room：' + msg.roomNum;
+	selfRoomItem.id = 'selfRoom';
+	selfRoomItem.textContent = 'Room：' + msg.roomNum;
 	showinfo.appendChild(selfRoomItem);
 });
 
@@ -144,39 +119,36 @@ socket.on('hostConnectionSuccess', function (msg) {
 	hostansform.classList.add('open');
 	main.classList.add('open');
 
-	// Host info
 	var selfNameItem = document.createElement('h2');
-	selfNameItem.setAttribute('id', 'selfHostName');
-	selfNameItem.textContent = '🎤 Host：' + msg.username;
+	selfNameItem.id = 'selfHostName';
+	selfNameItem.textContent = 'Host：' + msg.username;
 	showinfo.appendChild(selfNameItem);
 
 	var selfRoomItem = document.createElement('h3');
-	selfNameItem.setAttribute('id', 'selfRoom');
-	selfRoomItem.textContent = '🏠 Room：' + msg.roomNum;
+	selfRoomItem.id = 'selfRoom';
+	selfRoomItem.textContent = 'Room：' + msg.roomNum;
 	showinfo.appendChild(selfRoomItem);
 });
 
 socket.on('hostConnectionSuccessOthers', function (msg) {
 	var selfHostNameItem = document.createElement('h2');
-	selfHostNameItem.setAttribute('id', 'yourHostName');
-	selfHostNameItem.textContent = '🎤 Host：' + msg.username;
+	selfHostNameItem.id = 'yourHostName';
+	selfHostNameItem.textContent = 'Host：' + msg.username;
 	showinfo.appendChild(selfHostNameItem);
 });
 
 socket.on('hostDisconnection', function () {
-	var yourHostName = document.getElementById('yourHostName');
-	if (yourHostName) yourHostName.remove();
-	// If the host disconnects, remove host name too
-	var selfHostName = document.getElementById('selfHostName');
-	if (selfHostName) selfHostName.remove();
+	var el = document.getElementById('yourHostName');
+	if (el) el.remove();
+	var el2 = document.getElementById('selfHostName');
+	if (el2) el2.remove();
 });
 
 socket.on('point', function (msg) {
 	var pointMsg = document.getElementById('pointMsg');
 	pointMsg.textContent = msg;
-	// Animate score
 	pointMsg.classList.remove('pop');
-	void pointMsg.offsetWidth; // trigger reflow
+	void pointMsg.offsetWidth;
 	pointMsg.classList.add('pop');
 });
 
@@ -184,17 +156,17 @@ socket.on('hostRestart', function () {
 	hostansform.classList.add('open');
 });
 
-// ── Error display helpers ───────────────────────────────
+// ── Error helpers ──────────────────────────────────────
 function showError(message) {
 	var existing = document.getElementById('errorMsg');
 	if (existing) {
-		existing.textContent = '❌ ' + message;
+		existing.textContent = message;
 		return;
 	}
-	var erroritem = document.createElement('p');
-	erroritem.setAttribute('id', 'errorMsg');
-	erroritem.textContent = '❌ ' + message;
-	errorform.appendChild(erroritem);
+	var p = document.createElement('p');
+	p.id = 'errorMsg';
+	p.textContent = message;
+	errorform.appendChild(p);
 }
 
 function clearError() {
@@ -203,7 +175,7 @@ function clearError() {
 }
 
 // ────────────────────────────────────────────────────────
-// Piano engine (based on Michael Morris-Pierce's js-piano)
+// Piano engine
 // ────────────────────────────────────────────────────────
 
 (function () {
@@ -213,11 +185,11 @@ function clearError() {
 	start.addEventListener('click', function () {
 		if (!isStart) {
 			isStart = true;
-			start.textContent = '🎹 關閉鍵盤聲音';
+			start.textContent = '關閉鍵盤聲音';
 			start.classList.add('active');
 		} else {
 			isStart = false;
-			start.textContent = '⌨️ 開啟鍵盤聲音';
+			start.textContent = '開啟鍵盤聲音';
 			start.classList.remove('active');
 		}
 	});
@@ -237,21 +209,12 @@ function clearError() {
 
 	var pedal = 32;
 	var tonic = 'A2';
-
 	var intervals = {};
 	var depressed = {};
 
-	function pianoClass(name) {
-		return '.piano-' + name;
-	}
-
-	function soundId(id) {
-		return 'sound-' + id;
-	}
-
-	function sound(id) {
-		return document.getElementById(soundId(id));
-	}
+	function pianoClass(name) { return '.piano-' + name; }
+	function soundId(id) { return 'sound-' + id; }
+	function sound(id) { return document.getElementById(soundId(id)); }
 
 	function press(key) {
 		var audio = sound(key);
@@ -273,13 +236,9 @@ function clearError() {
 		var audio = sound(key);
 		var stepfade = function () {
 			if (audio) {
-				if (audio.volume < 0.03) {
-					kill(key)();
-				} else if (audio.volume > 0.2) {
-					audio.volume = audio.volume * 0.95;
-				} else {
-					audio.volume = audio.volume - 0.01;
-				}
+				if (audio.volume < 0.03) kill(key)();
+				else if (audio.volume > 0.2) audio.volume *= 0.95;
+				else audio.volume -= 0.01;
 			}
 		};
 		return function () {
@@ -321,10 +280,8 @@ function clearError() {
 		}
 	});
 
-	// ── Socket piano relay ──────────────────────────────
-	socket.on('playMouseDown', function (key) {
-		press(key);
-	});
+	// ── Socket relay ───────────────────────────────────
+	socket.on('playMouseDown', function (key) { press(key); });
 
 	socket.on('playMouseUp', function (key) {
 		depressed[key] = false;
@@ -335,9 +292,8 @@ function clearError() {
 	});
 
 	// ── Keyboard events ─────────────────────────────────
-	// BUG FIX: Only trigger piano when NOT typing in input/textarea
+	// Only trigger piano when not typing in input/textarea
 	$(document).keydown(function (event) {
-		// Skip piano keys when typing in chat or other input fields
 		var tag = event.target.tagName.toLowerCase();
 		if (tag === 'input' || tag === 'textarea') return;
 
@@ -347,7 +303,6 @@ function clearError() {
 			sustaining = true;
 			$(pianoClass('pedal')).addClass('piano-sustain');
 		}
-
 		var keyStr = keydown(event.which);
 		if (keyStr) press(keyStr);
 	});
@@ -368,7 +323,6 @@ function clearError() {
 				}
 			});
 		}
-
 		var keyStr = keyup(event.which);
 		if (keyStr) {
 			depressed[keyStr] = false;
@@ -399,7 +353,6 @@ function clearError() {
 				}
 			});
 		}
-
 		var keyStr = keyup(msg);
 		if (keyStr) {
 			depressed[keyStr] = false;
@@ -414,9 +367,8 @@ function clearError() {
 		if (isStart !== true) return null;
 		var offset = codes.indexOf(code);
 		if (offset >= 0) {
-			return keys.indexOf(tonic) + offset < keys.length
-				? keys[keys.indexOf(tonic) + offset]
-				: null;
+			var idx = keys.indexOf(tonic) + offset;
+			return idx < keys.length ? keys[idx] : null;
 		}
 		return null;
 	}
@@ -425,9 +377,8 @@ function clearError() {
 		if (isStart !== true) return null;
 		var offset = codes.indexOf(code);
 		if (offset >= 0) {
-			return keys.indexOf(tonic) + offset < keys.length
-				? keys[keys.indexOf(tonic) + offset]
-				: null;
+			var idx = keys.indexOf(tonic) + offset;
+			return idx < keys.length ? keys[idx] : null;
 		}
 		return null;
 	}
