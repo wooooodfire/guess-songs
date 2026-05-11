@@ -131,6 +131,7 @@ socket.on('hostConnectionSuccess', function (msg) {
 });
 
 socket.on('hostConnectionSuccessOthers', function (msg) {
+	if (isHostUser) return;
 	var selfHostNameItem = document.createElement('h2');
 	selfHostNameItem.id = 'yourHostName';
 	selfHostNameItem.textContent = 'Host：' + msg.username;
@@ -150,6 +151,24 @@ socket.on('point', function (msg) {
 	pointMsg.classList.remove('pop');
 	void pointMsg.offsetWidth;
 	pointMsg.classList.add('pop');
+});
+
+socket.on('scoreboard', function (scores) {
+	var tbody = document.getElementById('scoreboardBody');
+	tbody.innerHTML = '';
+	// Sort by score descending
+	var entries = Object.entries(scores).sort(function (a, b) { return b[1] - a[1]; });
+	entries.forEach(function (entry) {
+		var tr = document.createElement('tr');
+		var tdName = document.createElement('td');
+		tdName.textContent = entry[0];
+		var tdScore = document.createElement('td');
+		tdScore.textContent = entry[1];
+		tdScore.className = 'score-val';
+		tr.appendChild(tdName);
+		tr.appendChild(tdScore);
+		tbody.appendChild(tr);
+	});
 });
 
 socket.on('hostRestart', function () {

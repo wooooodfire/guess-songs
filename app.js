@@ -17,11 +17,11 @@ app.get('/', (req, res) => {
 });
 
 // ── Room state ─────────────────────────────────────────────────────────────
-let rooms = {};  // roomId -> { name: [], host: '', hostID: '', ans: '', start: false }
+let rooms = {};  // roomId -> { name: [], host: '', hostID: '', ans: '', start: false, points: {} }
 
 function createRoom(roomId) {
 	if (!rooms[roomId]) {
-		rooms[roomId] = { name: [], host: '', hostID: '', ans: '', start: false };
+		rooms[roomId] = { name: [], host: '', hostID: '', ans: '', start: false, points: {} };
 	}
 	return rooms[roomId];
 }
@@ -92,6 +92,12 @@ io.on('connection', (socket) => {
 		});
 
 		rooms[roomNum].name.push(username);
+		rooms[roomNum].points[username] = 0;
+
+		// Send current scoreboard to the new player
+		socket.emit('scoreboard', rooms[roomNum].points);
+		// Broadcast updated scoreboard to everyone else in the room
+		socket.to(myroom).emit('scoreboard', rooms[roomNum].points);
 
 		console.log('現在所有的users');
 		console.log(rooms);
@@ -138,7 +144,7 @@ io.on('connection', (socket) => {
 			roomNum,
 		});
 
-		io.to(myroom).emit('hostConnectionSuccessOthers', {
+		socket.to(myroom).emit('hostConnectionSuccessOthers', {
 			success: true,
 			message: `您們的主持人${username}`,
 			username,
@@ -148,6 +154,9 @@ io.on('connection', (socket) => {
 
 		rooms[roomNum].host = username;
 		rooms[roomNum].hostID = socket.id;
+
+		// Send scoreboard to host
+		socket.emit('scoreboard', rooms[roomNum].points);
 
 		console.log('現在所有的users');
 		console.log(rooms);
@@ -182,7 +191,9 @@ io.on('connection', (socket) => {
 			if (index !== -1) {
 				// Fix #3: splice returns an array, extract the element
 				const [removedName] = room.name.splice(index, 1);
+				delete room.points[removedName];
 				io.to(myroom).emit('chat message', `已離開房間`, removedName);
+				io.to(myroom).emit('scoreboard', room.points);
 				console.log(`使用者離開: ${removedName}`);
 			}
 		}
@@ -238,10 +249,13 @@ io.on('connection', (socket) => {
 
 		if (msg == rooms[myroom].ans) {
 			mypoint++;
+			rooms[myroom].points[myname] = mypoint;
 			io.to(myroom).emit('chat message', `猜對了答案！「${rooms[myroom].ans}」`, socket.nickname);
-			io.to(myroom).emit('chat message', `現在得分：${mypoint}`, socket.nickname);
 			socket.emit('point', mypoint);
 			rooms[myroom].ans = '';
+
+			// Broadcast updated scoreboard to entire room
+			io.to(myroom).emit('scoreboard', rooms[myroom].points);
 
 			// Fix #4: Notify the host that the round ended so the answer form reappears
 			io.to(rooms[myroom].hostID).emit('hostRestart');

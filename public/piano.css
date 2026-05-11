@@ -312,6 +312,41 @@ body {
 	100% { transform: scale(1); }
 }
 
+/* ── Scoreboard ─────────────────────────────────────── */
+
+.scoreboard {
+	max-width: 720px;
+	margin: 0 auto 16px;
+	border-collapse: collapse;
+	width: 100%;
+}
+
+.scoreboard th {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--text2);
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	text-align: left;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--border);
+}
+
+.scoreboard td {
+	font-size: 14px;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--border);
+}
+
+.scoreboard tbody tr:last-child td {
+	border-bottom: none;
+}
+
+.scoreboard .score-val {
+	font-weight: 700;
+	color: var(--green);
+}
+
 /* ── Piano ──────────────────────────────────────────── */
 
 .piano {
