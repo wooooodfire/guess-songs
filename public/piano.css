@@ -252,6 +252,8 @@ body {
 	max-height: 5000px;
 	opacity: 1;
 	padding: 24px 20px;
+	max-width: 720px;
+	margin: 0 auto;
 }
 
 .game-info {
