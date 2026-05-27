@@ -228,51 +228,85 @@ function clearError() {
 
 	var pedal = 32;
 	var tonic = 'A2';
-	var intervals = {};
 	var depressed = {};
 
 	function pianoClass(name) { return '.piano-' + name; }
 	function soundId(id) { return 'sound-' + id; }
 	function sound(id) { return document.getElementById(soundId(id)); }
 
+	// Active voice map: key -> array of {audio, interval, startTime}
+	var voices = {};
+
 	function press(key) {
-		var audio = sound(key);
-		if (depressed[key]) return;
-		clearInterval(intervals[key]);
-		if (audio) {
-			audio.pause();
-			audio.volume = 1.0;
-			if (audio.readyState >= 2) {
-				audio.currentTime = 0;
-				audio.play();
-				depressed[key] = true;
-			}
+		// Allow re-trigger even if key is physically held — create a NEW voice
+		var srcAudio = sound(key);
+		if (!srcAudio) return;
+
+		// Clone audio for polyphony (same source, independent playback)
+		var audio = srcAudio.cloneNode();
+		audio.volume = 1.0;
+
+		var voice = { audio: audio, interval: null, startTime: Date.now() };
+		if (!voices[key]) voices[key] = [];
+		voices[key].push(voice);
+
+		var playPromise = audio.play();
+		if (playPromise && typeof playPromise.then === 'function') {
+			playPromise.catch(function () {});
 		}
+
+		depressed[key] = true;
 		$(pianoClass(key)).addClass('pressed');
 	}
 
-	function fade(key) {
-		var audio = sound(key);
-		var stepfade = function () {
-			if (audio) {
-				if (audio.volume < 0.03) kill(key)();
-				else if (audio.volume > 0.2) audio.volume *= 0.95;
-				else audio.volume -= 0.01;
+	function fadeVoice(voice) {
+		var audio = voice.audio;
+		if (!audio) return;
+		clearInterval(voice.interval);
+		voice.interval = setInterval(function () {
+			if (!audio || audio.paused) {
+				clearInterval(voice.interval);
+				return;
 			}
-		};
-		return function () {
-			clearInterval(intervals[key]);
-			intervals[key] = setInterval(stepfade, 5);
-		};
+			if (audio.volume < 0.03) {
+				clearInterval(voice.interval);
+				audio.pause();
+				audio.src = '';
+			} else if (audio.volume > 0.2) {
+				audio.volume *= 0.95;
+			} else {
+				audio.volume -= 0.01;
+			}
+		}, 5);
 	}
 
-	function kill(key) {
-		var audio = sound(key);
-		return function () {
-			clearInterval(intervals[key]);
-			if (audio) audio.pause();
-			$(pianoClass(key)).removeClass('pressed');
-		};
+	function killVoice(voice) {
+		if (!voice) return;
+		clearInterval(voice.interval);
+		if (voice.audio) {
+			voice.audio.pause();
+			voice.audio.src = '';
+		}
+	}
+
+	function releaseKey(key) {
+		// Release visual & depressed state
+		depressed[key] = false;
+		$(pianoClass(key)).removeClass('pressed');
+
+		if (!voices[key] || voices[key].length === 0) return;
+
+		if (!sustaining) {
+			// Fade all active voices for this key
+			voices[key].forEach(function (voice) {
+				if (fadeout) fadeVoice(voice);
+				else killVoice(voice);
+			});
+		}
+		// Prune dead voices periodically (keep array from growing forever)
+		voices[key] = voices[key].filter(function (v) {
+			return v.audio && !v.audio.paused;
+		});
 	}
 
 	var fadeout = true;
@@ -284,31 +318,16 @@ function clearError() {
 			if (isHostUser) socket.emit('mousedown', key);
 			press(key);
 		});
-		if (fadeout) {
-			$(pianoClass(key)).mouseup(function () {
-				if (isHostUser) socket.emit('mouseup', key);
-				depressed[key] = false;
-				if (!sustaining) fade(key)();
-			});
-		} else {
-			$(pianoClass(key)).mouseup(function () {
-				if (isHostUser) socket.emit('mouseup', key);
-				depressed[key] = false;
-				if (!sustaining) kill(key)();
-			});
-		}
+		$(pianoClass(key)).mouseup(function () {
+			if (isHostUser) socket.emit('mouseup', key);
+			releaseKey(key);
+		});
 	});
 
 	// ── Socket relay ───────────────────────────────────
 	socket.on('playMouseDown', function (key) { press(key); });
 
-	socket.on('playMouseUp', function (key) {
-		depressed[key] = false;
-		if (!sustaining) {
-			if (fadeout) fade(key)();
-			else kill(key)();
-		}
-	});
+	socket.on('playMouseUp', function (key) { releaseKey(key); });
 
 	// ── Keyboard events ─────────────────────────────────
 	// Only trigger piano when not typing in input/textarea
@@ -317,7 +336,6 @@ function clearError() {
 		if (tag === 'input' || tag === 'textarea') return;
 
 		if (isHostUser) socket.emit('keydown', event.which);
-
 		if (event.which === pedal) {
 			sustaining = true;
 			$(pianoClass('pedal')).addClass('piano-sustain');
@@ -331,25 +349,15 @@ function clearError() {
 		if (tag === 'input' || tag === 'textarea') return;
 
 		if (isHostUser) socket.emit('keyup', event.which);
-
 		if (event.which === pedal) {
 			sustaining = false;
 			$(pianoClass('pedal')).removeClass('piano-sustain');
 			Object.keys(depressed).forEach(function (key) {
-				if (!depressed[key]) {
-					if (fadeout) fade(key)();
-					else kill(key)();
-				}
+				if (!depressed[key]) releaseKey(key);
 			});
 		}
 		var keyStr = keyup(event.which);
-		if (keyStr) {
-			depressed[keyStr] = false;
-			if (!sustaining) {
-				if (fadeout) fade(keyStr)();
-				else kill(keyStr)();
-			}
-		}
+		if (keyStr) releaseKey(keyStr);
 	});
 
 	socket.on('playKeyDown', function (msg) {
@@ -366,20 +374,11 @@ function clearError() {
 			sustaining = false;
 			$(pianoClass('pedal')).removeClass('piano-sustain');
 			Object.keys(depressed).forEach(function (key) {
-				if (!depressed[key]) {
-					if (fadeout) fade(key)();
-					else kill(key)();
-				}
+				if (!depressed[key]) releaseKey(key);
 			});
 		}
 		var keyStr = keyup(msg);
-		if (keyStr) {
-			depressed[keyStr] = false;
-			if (!sustaining) {
-				if (fadeout) fade(keyStr)();
-				else kill(keyStr)();
-			}
-		}
+		if (keyStr) releaseKey(keyStr);
 	});
 
 	function keydown(code) {
