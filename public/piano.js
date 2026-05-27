@@ -384,7 +384,6 @@ function clearError() {
 	});
 
 	function keydown(code) {
-		if (isKeyboardMode !== true) return null;
 		var offset = codes.indexOf(code);
 		if (offset >= 0) {
 			var idx = keys.indexOf(tonic) + offset;
@@ -394,7 +393,6 @@ function clearError() {
 	}
 
 	function keyup(code) {
-		if (isKeyboardMode !== true) return null;
 		var offset = codes.indexOf(code);
 		if (offset >= 0) {
 			var idx = keys.indexOf(tonic) + offset;
