@@ -198,17 +198,17 @@ function clearError() {
 // ────────────────────────────────────────────────────────
 
 (function () {
-	var isStart = false;
+	var isKeyboardMode = false;
 
 	var start = document.getElementById('start');
 	start.addEventListener('click', function () {
-		if (!isStart) {
-			isStart = true;
-			start.textContent = '關閉鍵盤聲音';
+		if (!isKeyboardMode) {
+			isKeyboardMode = true;
+			start.textContent = '停用鍵盤彈琴';
 			start.classList.add('active');
 		} else {
-			isStart = false;
-			start.textContent = '開啟鍵盤聲音';
+			isKeyboardMode = false;
+			start.textContent = '啟用鍵盤彈琴';
 			start.classList.remove('active');
 		}
 	});
@@ -334,6 +334,7 @@ function clearError() {
 	$(document).keydown(function (event) {
 		var tag = event.target.tagName.toLowerCase();
 		if (tag === 'input' || tag === 'textarea') return;
+		if (isKeyboardMode !== true) return;
 
 		if (isHostUser) socket.emit('keydown', event.which);
 		if (event.which === pedal) {
@@ -347,6 +348,7 @@ function clearError() {
 	$(document).keyup(function (event) {
 		var tag = event.target.tagName.toLowerCase();
 		if (tag === 'input' || tag === 'textarea') return;
+		if (isKeyboardMode !== true) return;
 
 		if (isHostUser) socket.emit('keyup', event.which);
 		if (event.which === pedal) {
@@ -382,7 +384,7 @@ function clearError() {
 	});
 
 	function keydown(code) {
-		if (isStart !== true) return null;
+		if (isKeyboardMode !== true) return null;
 		var offset = codes.indexOf(code);
 		if (offset >= 0) {
 			var idx = keys.indexOf(tonic) + offset;
@@ -392,7 +394,7 @@ function clearError() {
 	}
 
 	function keyup(code) {
-		if (isStart !== true) return null;
+		if (isKeyboardMode !== true) return null;
 		var offset = codes.indexOf(code);
 		if (offset >= 0) {
 			var idx = keys.indexOf(tonic) + offset;
