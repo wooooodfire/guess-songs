@@ -1,4 +1,4 @@
-/* Socket.io + Piano engine */
+/* Socket.io + Piano engine (Web Audio API via OpenWebPiano) */
 
 var socket = io();
 
@@ -156,7 +156,6 @@ socket.on('point', function (msg) {
 socket.on('scoreboard', function (scores) {
 	var tbody = document.getElementById('scoreboardBody');
 	tbody.innerHTML = '';
-	// Sort by score descending
 	var entries = Object.entries(scores).sort(function (a, b) { return b[1] - a[1]; });
 	entries.forEach(function (entry) {
 		var tr = document.createElement('tr');
@@ -194,7 +193,7 @@ function clearError() {
 }
 
 // ────────────────────────────────────────────────────────
-// Piano engine
+// Piano engine (Web Audio API via OpenWebPiano)
 // ────────────────────────────────────────────────────────
 
 (function () {
@@ -220,6 +219,14 @@ function clearError() {
 		'A4', 'Bb4', 'B4', 'C5',
 	];
 
+	// MIDI note numbers for each key name
+	var midiMap = {
+		'A2': 45, 'Bb2': 46, 'B2': 47, 'C3': 48, 'Db3': 49, 'D3': 50, 'Eb3': 51, 'E3': 52,
+		'F3': 53, 'Gb3': 54, 'G3': 55, 'Ab3': 56, 'A3': 57, 'Bb3': 58, 'B3': 59, 'C4': 60,
+		'Db4': 61, 'D4': 62, 'Eb4': 63, 'E4': 64, 'F4': 65, 'Gb4': 66, 'G4': 67, 'Ab4': 68,
+		'A4': 69, 'Bb4': 70, 'B4': 71, 'C5': 72,
+	};
+
 	var codes = [
 		90, 83, 88, 67, 70, 86, 71, 66, 78, 74, 77, 75,
 		81, 50, 87, 69, 52, 82, 53, 84, 89, 55, 85, 56,
@@ -229,87 +236,36 @@ function clearError() {
 	var pedal = 32;
 	var tonic = 'A2';
 	var depressed = {};
+	var audioCtx = null;
+	var pianoReady = false;
+
+	function ensureAudio() {
+		if (audioCtx) return;
+		var AudioContext = window.AudioContext || window.webkitAudioContext;
+		audioCtx = new AudioContext();
+		openWebPiano.init(audioCtx);
+		pianoReady = true;
+	}
 
 	function pianoClass(name) { return '.piano-' + name; }
-	function soundId(id) { return 'sound-' + id; }
-	function sound(id) { return document.getElementById(soundId(id)); }
-
-	// Active voice map: key -> array of {audio, interval, startTime}
-	var voices = {};
 
 	function press(key) {
-		// Allow re-trigger even if key is physically held — create a NEW voice
-		var srcAudio = sound(key);
-		if (!srcAudio) return;
-
-		// Clone audio for polyphony (same source, independent playback)
-		var audio = srcAudio.cloneNode();
-		audio.volume = 1.0;
-
-		var voice = { audio: audio, interval: null, startTime: Date.now() };
-		if (!voices[key]) voices[key] = [];
-		voices[key].push(voice);
-
-		var playPromise = audio.play();
-		if (playPromise && typeof playPromise.then === 'function') {
-			playPromise.catch(function () {});
-		}
-
+		ensureAudio();
+		var midi = midiMap[key];
+		if (midi === undefined) return;
+		openWebPiano.noteOn(midi, 100);
 		depressed[key] = true;
 		$(pianoClass(key)).addClass('pressed');
 	}
 
-	function fadeVoice(voice) {
-		var audio = voice.audio;
-		if (!audio) return;
-		clearInterval(voice.interval);
-		voice.interval = setInterval(function () {
-			if (!audio || audio.paused) {
-				clearInterval(voice.interval);
-				return;
-			}
-			if (audio.volume < 0.03) {
-				clearInterval(voice.interval);
-				audio.pause();
-				audio.src = '';
-			} else if (audio.volume > 0.2) {
-				audio.volume *= 0.95;
-			} else {
-				audio.volume -= 0.01;
-			}
-		}, 5);
-	}
-
-	function killVoice(voice) {
-		if (!voice) return;
-		clearInterval(voice.interval);
-		if (voice.audio) {
-			voice.audio.pause();
-			voice.audio.src = '';
-		}
-	}
-
 	function releaseKey(key) {
-		// Release visual & depressed state
+		var midi = midiMap[key];
+		if (midi === undefined) return;
+		openWebPiano.noteOff(midi);
 		depressed[key] = false;
 		$(pianoClass(key)).removeClass('pressed');
-
-		if (!voices[key] || voices[key].length === 0) return;
-
-		if (!sustaining) {
-			// Fade all active voices for this key
-			voices[key].forEach(function (voice) {
-				if (fadeout) fadeVoice(voice);
-				else killVoice(voice);
-			});
-		}
-		// Prune dead voices periodically (keep array from growing forever)
-		voices[key] = voices[key].filter(function (v) {
-			return v.audio && !v.audio.paused;
-		});
 	}
 
-	var fadeout = true;
 	var sustaining = false;
 
 	// ── Mouse events ────────────────────────────────────
@@ -326,19 +282,18 @@ function clearError() {
 
 	// ── Socket relay ───────────────────────────────────
 	socket.on('playMouseDown', function (key) { press(key); });
-
 	socket.on('playMouseUp', function (key) { releaseKey(key); });
 
 	// ── Keyboard events ─────────────────────────────────
-	// Only trigger piano when not typing in input/textarea
 	$(document).keydown(function (event) {
 		var tag = event.target.tagName.toLowerCase();
 		if (tag === 'input' || tag === 'textarea') return;
 		if (isKeyboardMode !== true) return;
-
 		if (isHostUser) socket.emit('keydown', event.which);
 		if (event.which === pedal) {
 			sustaining = true;
+			ensureAudio();
+			openWebPiano.sustain(127);
 			$(pianoClass('pedal')).addClass('piano-sustain');
 		}
 		var keyStr = keydown(event.which);
@@ -349,10 +304,10 @@ function clearError() {
 		var tag = event.target.tagName.toLowerCase();
 		if (tag === 'input' || tag === 'textarea') return;
 		if (isKeyboardMode !== true) return;
-
 		if (isHostUser) socket.emit('keyup', event.which);
 		if (event.which === pedal) {
 			sustaining = false;
+			openWebPiano.sustain(0);
 			$(pianoClass('pedal')).removeClass('piano-sustain');
 			Object.keys(depressed).forEach(function (key) {
 				if (!depressed[key]) releaseKey(key);
@@ -365,6 +320,8 @@ function clearError() {
 	socket.on('playKeyDown', function (msg) {
 		if (msg === pedal) {
 			sustaining = true;
+			ensureAudio();
+			openWebPiano.sustain(127);
 			$(pianoClass('pedal')).addClass('piano-sustain');
 		}
 		var keyStr = keydown(msg);
@@ -374,6 +331,7 @@ function clearError() {
 	socket.on('playKeyUp', function (msg) {
 		if (msg === pedal) {
 			sustaining = false;
+			openWebPiano.sustain(0);
 			$(pianoClass('pedal')).removeClass('piano-sustain');
 			Object.keys(depressed).forEach(function (key) {
 				if (!depressed[key]) releaseKey(key);
