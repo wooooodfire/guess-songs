@@ -1,123 +1,602 @@
-/**
-  Copyright 2012 Michael Morris-Pearce
+/* Spotify-inspired dark theme — clean, functional, minimal */
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program. If not, see <http://www.gnu.org/licenses/>.
-*/
-
-audio {
-  display: none;
+*, *::before, *::after {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
 }
 
-.piano-javascript {
-  border: 3px solid #f88;
-  display: block;
+:root {
+	--bg: #121212;
+	--surface: #181818;
+	--surface2: #1f1f1f;
+	--green: #1ed760;
+	--green-hover: #1fdf64;
+	--text: #ffffff;
+	--text2: #b3b3b3;
+	--border: #282828;
+	--red: #f3727f;
 }
+
+audio { display: none; }
+
+body {
+	font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+	background: var(--bg);
+	color: var(--text);
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+}
+
+/* ── Lobby ──────────────────────────────────────────── */
+
+.lobby {
+	max-height: 2000px;
+	overflow: hidden;
+	transition: max-height 0.6s ease, opacity 0.4s ease;
+	opacity: 1;
+}
+
+.lobby.collapsed {
+	max-height: 0;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.lobby-inner {
+	max-width: 600px;
+	margin: 0 auto;
+	padding: 60px 20px 40px;
+}
+
+.page-title {
+	font-size: 2rem;
+	font-weight: 700;
+	margin-bottom: 32px;
+	letter-spacing: -0.5px;
+}
+
+.lobby-columns {
+	display: flex;
+	gap: 16px;
+}
+
+@media (max-width: 576px) {
+	.lobby-columns {
+		flex-direction: column;
+	}
+}
+
+.lobby-card {
+	flex: 1;
+	background: var(--surface);
+	padding: 24px;
+	border-radius: 8px;
+}
+
+.lobby-card h2 {
+	font-size: 16px;
+	font-weight: 700;
+	margin-bottom: 20px;
+}
+
+.form-stack {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.field label {
+	display: block;
+	font-size: 14px;
+	font-weight: 400;
+	color: var(--text2);
+	margin-bottom: 6px;
+}
+
+.field input {
+	width: 100%;
+	background: var(--surface2);
+	border: none;
+	border-radius: 4px;
+	padding: 12px 14px;
+	color: var(--text);
+	font-family: inherit;
+	font-size: 14px;
+	outline: none;
+	transition: box-shadow 0.2s;
+}
+
+.field input:focus {
+	box-shadow: 0 0 0 2px var(--green);
+}
+
+.field input::placeholder {
+	color: #727272;
+}
+
+/* ── Buttons ────────────────────────────────────────── */
+
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: none;
+	border-radius: 500px;
+	font-family: inherit;
+	font-size: 14px;
+	font-weight: 700;
+	cursor: pointer;
+	transition: transform 0.1s, background 0.2s;
+}
+
+.btn:active {
+	transform: scale(0.97);
+}
+
+.btn-green {
+	background: var(--green);
+	color: #000;
+	padding: 12px 32px;
+}
+
+.btn-green:hover {
+	background: var(--green-hover);
+	transform: scale(1.02);
+}
+
+.btn-outline {
+	background: transparent;
+	color: var(--text);
+	border: 1px solid #727272;
+	padding: 12px 32px;
+}
+
+.btn-outline:hover {
+	border-color: var(--text);
+}
+
+.btn-sm {
+	padding: 8px 20px;
+	font-size: 13px;
+}
+
+.btn-keyboard {
+	background: var(--surface2);
+	color: var(--text2);
+	padding: 8px 16px;
+	font-size: 13px;
+	border-radius: 500px;
+	margin-bottom: 12px;
+}
+
+.btn-keyboard:hover {
+	color: var(--text);
+}
+
+.btn-keyboard.active {
+	background: var(--green);
+	color: #000;
+}
+
+/* ── Error ──────────────────────────────────────────── */
+
+#errorform {
+	margin-top: 16px;
+}
+
+#errorform p {
+	background: rgba(243, 114, 127, 0.1);
+	border: 1px solid var(--red);
+	border-radius: 4px;
+	padding: 10px 14px;
+	color: var(--red);
+	font-size: 14px;
+}
+
+/* ── Host Answer ────────────────────────────────────── */
+
+.host-answer {
+	max-height: 0;
+	overflow: hidden;
+	transition: max-height 0.4s ease;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	max-width: 600px;
+	margin: 0 auto;
+	background: var(--surface);
+	padding: 0 20px;
+	border-radius: 8px;
+}
+
+.host-answer.open {
+	max-height: 80px;
+	padding: 14px 20px;
+	margin-top: 16px;
+	margin-bottom: 0;
+}
+
+.host-answer span {
+	font-weight: 600;
+	font-size: 14px;
+	white-space: nowrap;
+}
+
+.host-answer input {
+	flex: 1;
+	background: var(--surface2);
+	border: none;
+	border-radius: 4px;
+	padding: 10px 12px;
+	color: var(--text);
+	font-family: inherit;
+	font-size: 14px;
+	outline: none;
+}
+
+.host-answer input:focus {
+	box-shadow: 0 0 0 2px var(--green);
+}
+
+/* ── Game ───────────────────────────────────────────── */
+
+.game {
+	max-height: 0;
+	overflow: hidden;
+	opacity: 0;
+	transition: max-height 0.6s ease, opacity 0.4s ease;
+}
+
+.game.open {
+	max-height: 5000px;
+	opacity: 1;
+	padding: 24px 20px;
+}
+
+.game-info {
+	margin-bottom: 12px;
+	max-width: 720px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.game-info h2 {
+	font-size: 16px;
+	font-weight: 700;
+	color: var(--green);
+	margin: 0;
+}
+
+.game-info h3 {
+	font-size: 14px;
+	font-weight: 400;
+	color: var(--text2);
+	margin: 4px 0 0;
+}
+
+.score-bar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	background: var(--surface);
+	padding: 10px 16px;
+	border-radius: 8px;
+	margin-bottom: 16px;
+	margin-left: auto;
+	margin-right: auto;
+	width: fit-content;
+}
+
+.score-label {
+	font-size: 12px;
+	color: var(--text2);
+	text-transform: uppercase;
+	letter-spacing: 1.4px;
+	font-weight: 600;
+}
+
+.score-num {
+	font-size: 24px;
+	font-weight: 700;
+	color: var(--green);
+	line-height: 1;
+}
+
+.score-num.pop {
+	animation: pop 0.35s ease;
+}
+
+@keyframes pop {
+	50% { transform: scale(1.3); }
+	100% { transform: scale(1); }
+}
+
+/* ── Scoreboard ─────────────────────────────────────── */
+
+.scoreboard {
+	max-width: 720px;
+	margin: 0 auto 16px;
+	border-collapse: collapse;
+	width: 100%;
+}
+
+.scoreboard th {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--text2);
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	text-align: left;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--border);
+}
+
+.scoreboard td {
+	font-size: 14px;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--border);
+}
+
+.scoreboard tbody tr:last-child td {
+	border-bottom: none;
+}
+
+.scoreboard .score-val {
+	font-weight: 700;
+	color: var(--green);
+}
+
+/* ── Piano ──────────────────────────────────────────── */
 
 .piano {
-  padding: 5px;
-  margin: 0 auto;
-  width: 550px;
-}
-
-.piano-container, .piano-javascript {
-  border-radius: 5px;
-  margin: 5px;
-  padding: 5px;
+	max-width: 100%;
+	overflow-x: auto;
+	padding: 8px 0;
+	margin-bottom: 16px;
 }
 
 .piano-container {
-  text-align: center;
+	text-align: center;
+	padding: 16px 8px 20px;
+	background: var(--surface);
+	border-radius: 8px;
 }
 
-.piano-keys{
-  word-spacing: 0;
-  letter-spacing: 0;
-  font-size: 0;
+.piano-keys {
+	display: inline-flex;
+	position: relative;
+	white-space: nowrap;
 }
 
-.piano-pedal {
-  margin: 10px;
-  color: rgba(0, 0, 0, 0.1);
-}
-
-.piano-sustain {
-  color: black;
+.piano-javascript {
+	border: 2px solid var(--red);
+	display: block;
+	padding: 10px;
+	font-size: 14px;
+	color: var(--red);
 }
 
 .piano-white, .piano-black {
-  display: inline-block;
-  position: relative;
-  vertical-align: top;
-  direction: ltr;
-  margin: 0;
-  padding: 0;
-}
-
-.piano-white, .piano-black-raised {
-  border-radius: 2px;
-  border-color: #222;
-  border-style: solid;
-  border-width: 1px 1px 1px 1px;
-  cursor: pointer;
+	display: inline-flex;
+	position: relative;
+	vertical-align: top;
+	direction: ltr;
+	margin: 0;
+	padding: 0;
 }
 
 .piano-white {
-  width: 24px;
-  height: 100px;
-  background-color: white;
-  z-index: 1;
+	width: 36px;
+	height: 140px;
+	background: #fafafa;
+	border: 1px solid #bbb;
+	border-radius: 0 0 5px 5px;
+	cursor: pointer;
+	z-index: 1;
+	display: inline-flex;
+	flex-direction: column;
+	justify-content: flex-end;
+	align-items: center;
+	padding-bottom: 8px;
+	user-select: none;
+	-webkit-user-select: none;
+	transition: background 0.08s;
+}
+
+.piano-white:hover {
+	background: #fff;
+}
+
+.piano-white:active, .piano-white.pressed {
+	background: #d4f7e0;
 }
 
 .piano-black {
-  width: 0px;
-  height: 100px;
-  z-index: 2;
+	width: 0;
+	height: 140px;
+	z-index: 2;
 }
 
 .piano-black-raised {
-  width: 16px;
-  height: 70px;
-  position: relative;
-  left: -10px;
-  background-color: black;
+	width: 24px;
+	height: 90px;
+	position: relative;
+	left: -14px;
+	background: #222;
+	border: 1px solid #000;
+	border-radius: 0 0 4px 4px;
+	cursor: pointer;
+	z-index: 2;
+	display: inline-flex;
+	flex-direction: column;
+	justify-content: flex-end;
+	align-items: center;
+	padding-bottom: 4px;
+	user-select: none;
+	-webkit-user-select: none;
+	transition: background 0.08s;
 }
 
-/* https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Scroll_Snap/Basic_concepts */
-#scroller {
-  height: 300px;
-  overflow-y: scroll;
-  scroll-snap-type: y mandatory;
-  background-color: antiquewhite;
+.piano-black-raised:hover {
+	background: #333;
 }
 
-#mainform{
-  max-height: fit-content;
-  overflow: hidden;
-  transition: max-height 1s ease-out;
+.piano-black-raised:active, .piano-black-raised.pressed {
+	background: #1ed760;
 }
 
-#hostansform{
-overflow: hidden;
-  max-height: 0;
+.kl {
+	font-size: 7px;
+	opacity: 0.35;
+	pointer-events: none;
+	color: inherit;
 }
 
-#main{
-  overflow: hidden;
-  max-height: 0;
+.piano-white .kl {
+	color: #555;
 }
 
-/* 
-.piano{
-display: none;
-} */
+.piano-black-raised .kl {
+	color: #999;
+	font-size: 6px;
+}
+
+/* ── Chat ────────────────────────────────────────────── */
+
+.chat-box {
+	background: var(--surface);
+	border-radius: 8px;
+	overflow: hidden;
+	max-width: 720px;
+	margin: 0 auto;
+}
+
+.chat-header {
+	padding: 12px 16px;
+	font-weight: 700;
+	font-size: 14px;
+	border-bottom: 1px solid var(--border);
+}
+
+.chat-messages {
+	height: 300px;
+	overflow-y: auto;
+	padding: 12px 16px;
+	scroll-snap-type: y proximity;
+}
+
+.chat-messages::-webkit-scrollbar {
+	width: 4px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+	background: #444;
+	border-radius: 2px;
+}
+
+#messages {
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+#messages li {
+	font-size: 14px;
+	padding: 4px 0;
+	line-height: 1.4;
+}
+
+#messages li.system {
+	color: var(--green);
+	font-weight: 600;
+	text-align: center;
+	padding: 6px 0;
+}
+
+#messages li.correct {
+	color: var(--green);
+	font-weight: 600;
+}
+
+.chat-input {
+	display: flex;
+	gap: 8px;
+	padding: 12px 16px;
+	border-top: 1px solid var(--border);
+}
+
+.chat-input input {
+	flex: 1;
+	background: var(--surface2);
+	border: none;
+	border-radius: 4px;
+	padding: 10px 12px;
+	color: var(--text);
+	font-family: inherit;
+	font-size: 14px;
+	outline: none;
+}
+
+.chat-input input:focus {
+	box-shadow: 0 0 0 2px var(--green);
+}
+
+/* ── Responsive ─────────────────────────────────────── */
+
+@media (max-width: 576px) {
+	.page-title {
+		font-size: 1.5rem;
+		text-align: center;
+	}
+
+	.lobby-inner {
+		padding: 40px 16px 24px;
+	}
+
+	.piano-white {
+		width: 28px;
+		height: 110px;
+	}
+
+	.piano-black-raised {
+		width: 20px;
+		height: 70px;
+		left: -11px;
+	}
+
+	.chat-messages {
+		height: 220px;
+	}
+
+	.host-answer {
+		flex-wrap: wrap;
+		max-width: 100%;
+	}
+
+	.host-answer input {
+		width: 100%;
+	}
+
+	.game.open {
+		padding: 16px 12px;
+	}
+}
+
+@media (max-width: 400px) {
+	.piano-white {
+		width: 22px;
+		height: 90px;
+	}
+
+	.piano-black-raised {
+		width: 16px;
+		height: 55px;
+		left: -9px;
+	}
+
+	.kl {
+		display: none;
+	}
+}
